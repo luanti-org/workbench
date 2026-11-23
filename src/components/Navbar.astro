@@ -1,0 +1,89 @@
+---
+import Logo from '../assets/luanti.svg';
+import Sun from '@lucide/astro/icons/sun';
+import Moon from '@lucide/astro/icons/moon';
+import Contrast from '@lucide/astro/icons/contrast';
+import Check from '@lucide/astro/icons/check';
+
+const options = [
+	{ value: 'light', label: 'Light', icon: Sun },
+	{ value: 'dark', label: 'Dark', icon: Moon },
+	{ value: 'system', label: 'System', icon: Contrast },
+] as const;
+---
+
+<nav class="bg-base-200 shadow-sm">
+	<div class="navbar container mx-auto px-4">
+		<div class="flex-1">
+			<a href="/" class="btn btn-ghost gap-2 px-2 text-xl">
+				<Logo width={32} height={32} aria-hidden="true" />
+				Workbench
+			</a>
+		</div>
+		<div class="flex-none">
+			<div class="dropdown dropdown-end">
+				<div tabindex="0" role="button" class="btn btn-ghost gap-2 px-2 font-medium" title="Change theme" aria-label="Change theme" aria-haspopup="menu">
+					{
+						options.map(({ value, label, icon: Icon }) => (
+							<span data-theme-current={value} class="hidden items-center gap-2">
+								<Icon size={20} aria-hidden="true" />
+								{label}
+							</span>
+						))
+					}
+				</div>
+				<ul tabindex="-1" role="menu" class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-32 p-1 text-sm shadow-lg">
+					{
+						options.map(({ value, label }) => (
+							<li role="none">
+								<button type="button" role="menuitemradio" aria-checked="false" data-theme-option={value} class="justify-between">
+									{label}
+									<Check size={14} aria-hidden="true" class="invisible" data-theme-check />
+								</button>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</div>
+	</div>
+</nav>
+
+<script>
+	const KEY = 'theme';
+	type Theme = 'system' | 'light' | 'dark';
+
+	function current(): Theme {
+		const stored = sessionStorage.getItem(KEY);
+		return stored === 'light' || stored === 'dark' ? stored : 'system';
+	}
+
+	function apply(theme: Theme) {
+		const root = document.documentElement;
+		if (theme === 'system') root.removeAttribute('data-theme');
+		else root.setAttribute('data-theme', theme);
+
+		document.querySelectorAll<HTMLElement>('[data-theme-current]').forEach((el) => {
+			const active = el.dataset.themeCurrent === theme;
+			el.classList.toggle('hidden', !active);
+			el.classList.toggle('flex', active);
+		});
+		document.querySelectorAll<HTMLElement>('[data-theme-option]').forEach((el) => {
+			const active = el.dataset.themeOption === theme;
+			el.setAttribute('aria-checked', String(active));
+			el.querySelector('[data-theme-check]')?.classList.toggle('invisible', !active);
+		});
+	}
+
+	apply(current());
+
+	document.querySelectorAll<HTMLButtonElement>('[data-theme-option]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			const theme = btn.dataset.themeOption as Theme;
+			if (theme === 'system') sessionStorage.removeItem(KEY);
+			else sessionStorage.setItem(KEY, theme);
+			apply(theme);
+			(document.activeElement as HTMLElement | null)?.blur();
+		});
+	});
+</script>

@@ -1,11 +1,62 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import Logo from '../assets/luanti.svg';
+import LayoutTemplate from '@lucide/astro/icons/layout-template';
+import MountainSnow from '@lucide/astro/icons/mountain-snow';
+import Box from '@lucide/astro/icons/box';
+import Monitor from '@lucide/astro/icons/monitor';
+import Palette from '@lucide/astro/icons/palette';
+import Boxes from '@lucide/astro/icons/boxes';
+import Sparkles from '@lucide/astro/icons/sparkles';
+import Sprout from '@lucide/astro/icons/sprout';
+import Wrench from '@lucide/astro/icons/wrench';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const tools = [
+	{ name: 'Formspec Editor', description: 'Build and preview formspec GUIs visually.', icon: LayoutTemplate },
+	{ name: 'Noise / Mapgen Visualizer', description: 'Tune noise parameters and see terrain update live.', icon: MountainSnow },
+	{ name: 'Schematic Viewer', description: 'Inspect .mts schematics in 3D.', icon: Box },
+	{ name: 'HUD Editor', description: 'Lay out HUD elements and export the definitions.', icon: Monitor },
+	{ name: 'Texture Modifier Editor', description: 'Compose texture modifier strings with a live preview.', icon: Palette },
+	{ name: 'Nodebox Editor', description: 'Model nodeboxes and copy the resulting Lua.', icon: Boxes },
+	{ name: 'Particle Spawner Designer', description: 'Design particle spawners and preview the effect.', icon: Sparkles },
+	{ name: 'L-System Designer', description: 'Grow L-system trees and tweak their rules.', icon: Sprout },
+];
 ---
 
 <Layout>
-	<Welcome />
+	<section class="hero bg-base-200 rounded-box mb-10 py-12">
+		<div class="hero-content flex-col text-center">
+			<Logo width={80} height={80} aria-hidden="true" />
+			<h1 class="text-4xl font-bold sm:text-5xl">Luanti Workbench</h1>
+			<p class="text-base-content/70 max-w-xl text-lg">
+				A set of web tools for creating Luanti content, built by the DevEx team.
+			</p>
+			<div class="badge badge-warning badge-outline gap-1">
+				<Wrench size={14} aria-hidden="true" />
+				Work in progress
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<h2 class="mb-4 text-2xl font-semibold">Tools</h2>
+		<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+			{
+				tools.map(({ name, description, icon: Icon }) => (
+					<li class="card card-border bg-base-100 transition hover:-translate-y-0.5 hover:shadow-md">
+						<div class="card-body">
+							<div class="bg-primary/10 text-primary rounded-field mb-2 grid size-11 place-items-center">
+								<Icon size={22} aria-hidden="true" />
+							</div>
+							<h3 class="card-title text-base">{name}</h3>
+							<p class="text-base-content/70 text-sm">{description}</p>
+							<div class="card-actions mt-2 justify-end">
+								<span class="badge badge-ghost badge-sm">Coming soon</span>
+							</div>
+						</div>
+					</li>
+				))
+			}
+		</ul>
+	</section>
 </Layout>
