@@ -1,25 +1,57 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Logo from '../assets/luanti.svg';
-import LayoutTemplate from '@lucide/astro/icons/layout-template';
-import MountainSnow from '@lucide/astro/icons/mountain-snow';
 import Box from '@lucide/astro/icons/box';
-import Monitor from '@lucide/astro/icons/monitor';
-import Palette from '@lucide/astro/icons/palette';
 import Boxes from '@lucide/astro/icons/boxes';
+import LayoutTemplate from '@lucide/astro/icons/layout-template';
+import Monitor from '@lucide/astro/icons/monitor';
+import MountainSnow from '@lucide/astro/icons/mountain-snow';
+import Palette from '@lucide/astro/icons/palette';
 import Sparkles from '@lucide/astro/icons/sparkles';
 import Sprout from '@lucide/astro/icons/sprout';
 import Wrench from '@lucide/astro/icons/wrench';
+import Logo from '../assets/luanti.svg';
+import Layout from '../layouts/Layout.astro';
 
 const tools = [
-	{ name: 'Formspec Editor', description: 'Build and preview formspec GUIs visually.', icon: LayoutTemplate },
-	{ name: 'Noise / Mapgen Visualizer', description: 'Tune noise parameters and see terrain update live.', icon: MountainSnow },
-	{ name: 'Schematic Viewer', description: 'Inspect .mts schematics in 3D.', icon: Box },
-	{ name: 'HUD Editor', description: 'Lay out HUD elements and export the definitions.', icon: Monitor },
-	{ name: 'Texture Modifier Editor', description: 'Compose texture modifier strings with a live preview.', icon: Palette },
-	{ name: 'Nodebox Editor', description: 'Model nodeboxes and copy the resulting Lua.', icon: Boxes },
-	{ name: 'Particle Spawner Designer', description: 'Design particle spawners and preview the effect.', icon: Sparkles },
-	{ name: 'L-System Designer', description: 'Grow L-system trees and tweak their rules.', icon: Sprout },
+	{
+		name: 'Formspec Editor',
+		description: 'Build and preview formspec GUIs visually.',
+		icon: LayoutTemplate,
+	},
+	{
+		name: 'Noise / Mapgen Visualizer',
+		description: 'Tune noise parameters and see terrain update live.',
+		icon: MountainSnow,
+	},
+	{
+		name: 'Schematic Viewer',
+		description: 'Inspect .mts schematics in 3D.',
+		icon: Box,
+	},
+	{
+		name: 'HUD Editor',
+		description: 'Lay out HUD elements and export the definitions.',
+		icon: Monitor,
+	},
+	{
+		name: 'Texture Modifier Editor',
+		description: 'Compose texture modifier strings with a live preview.',
+		icon: Palette,
+	},
+	{
+		name: 'Nodebox Editor',
+		description: 'Model nodeboxes and copy the resulting Lua.',
+		icon: Boxes,
+	},
+	{
+		name: 'Particle Spawner Designer',
+		description: 'Design particle spawners and preview the effect.',
+		icon: Sparkles,
+	},
+	{
+		name: 'L-System Designer',
+		description: 'Grow L-system trees and tweak their rules.',
+		icon: Sprout,
+	},
 ];
 ---
 
