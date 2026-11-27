@@ -1,0 +1,1318 @@
+---
+import Axe from '@lucide/astro/icons/axe';
+import Code from '@lucide/astro/icons/code';
+import Copy from '@lucide/astro/icons/copy';
+import Dices from '@lucide/astro/icons/dices';
+import FileInput from '@lucide/astro/icons/file-input';
+import GitFork from '@lucide/astro/icons/git-fork';
+import Link from '@lucide/astro/icons/link';
+import LocateFixed from '@lucide/astro/icons/locate-fixed';
+import Maximize from '@lucide/astro/icons/maximize';
+import Minimize from '@lucide/astro/icons/minimize';
+import Pencil from '@lucide/astro/icons/pencil';
+import Shrub from '@lucide/astro/icons/shrub';
+import SlidersHorizontal from '@lucide/astro/icons/sliders-horizontal';
+import TreeDeciduous from '@lucide/astro/icons/tree-deciduous';
+import TreePine from '@lucide/astro/icons/tree-pine';
+import Layout from '../../layouts/Layout.astro';
+import { TEMPLATES } from '../../lib/lsystem/builder';
+import { EXAMPLES } from '../../lib/lsystem/examples';
+import { DEFAULT_COLORS } from '../../lib/lsystem/viewer';
+
+const templateIcons = {
+	broadleaf: TreeDeciduous,
+	conifer: TreePine,
+	branching: GitFork,
+	dead: Axe,
+	bush: Shrub,
+} as const;
+
+const ruleFields = [
+	{ name: 'axiom', label: 'Axiom', help: 'Where drawing starts' },
+	{ name: 'rules_a', label: 'Rules A', help: 'Replaces A / a' },
+	{ name: 'rules_b', label: 'Rules B', help: 'Replaces B / b' },
+	{ name: 'rules_c', label: 'Rules C', help: 'Replaces C / c' },
+	{ name: 'rules_d', label: 'Rules D', help: 'Replaces D / d' },
+];
+
+const nodeFields = [
+	{ name: 'trunk', label: 'Trunk', kind: 'trunk' },
+	{ name: 'leaves', label: 'Leaves', kind: 'leaves' },
+	{ name: 'leaves2', label: 'Leaves 2', kind: 'leaves2' },
+	{ name: 'fruit', label: 'Fruit', kind: 'fruit' },
+] as const;
+
+const symbols: [string, string][] = [
+	['G', 'move forward, pen up'],
+	['F', 'move forward, draw trunk; inside [ ] a branch with leaves'],
+	['f', 'move forward, draw a leaf'],
+	['T', 'move forward, draw trunk only'],
+	['R', 'move forward, place fruit'],
+	['A–D', 'replace with rules set A–D'],
+	['a–d', 'replace with A–D at 90/80/70/60%'],
+	['+ −', 'yaw right / left'],
+	['& ^', 'pitch down / up'],
+	['/ *', 'roll right / left'],
+	['[ ]', 'push / pop turtle state'],
+];
+---
+
+<Layout title="L-System Editor">
+	<div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+		<div>
+			<div class="breadcrumbs py-0 text-sm">
+				<ul>
+					<li><a href="/l-system">L-system trees</a></li>
+					<li>Editor</li>
+				</ul>
+			</div>
+			<h1 class="text-2xl font-bold">L-System Editor</h1>
+			<p class="text-base-content/70 text-sm">
+				Design trees for <code>core.spawn_tree</code> and <code>lsystem</code> decorations.
+			</p>
+		</div>
+		<div class="flex flex-wrap gap-2">
+			<button type="button" id="import-open" class="btn btn-sm">
+				<FileInput size={16} aria-hidden="true" /> Import Lua
+			</button>
+			<button type="button" id="share" class="btn btn-sm">
+				<Link size={16} aria-hidden="true" /> Copy link
+			</button>
+		</div>
+	</div>
+
+	<div class="grid gap-4 lg:grid-cols-[24rem_1fr]">
+		<form id="treedef" class="flex min-w-0 flex-col gap-4" autocomplete="off">
+			<div role="tablist" class="tabs tabs-box">
+				<button type="button" role="tab" class="tab tab-active flex-1 gap-2" data-mode="builder" aria-selected="true">
+					<SlidersHorizontal size={16} aria-hidden="true" /> Builder
+				</button>
+				<button type="button" role="tab" class="tab flex-1 gap-2" data-mode="advanced" aria-selected="false">
+					<Code size={16} aria-hidden="true" /> Rules
+				</button>
+			</div>
+
+			<!-- Builder ------------------------------------------------------------------>
+			<section id="builder-panel" class="flex flex-col gap-4">
+				<fieldset class="fieldset bg-base-200 rounded-box p-4">
+					<legend class="fieldset-legend">Tree type</legend>
+					<div class="grid grid-cols-2 gap-2">
+						{
+							TEMPLATES.map((t) => {
+								const Icon = templateIcons[t.id as keyof typeof templateIcons];
+								return (
+									<button
+										type="button"
+										data-template={t.id}
+										class="btn btn-sm h-auto justify-start gap-2 py-2"
+										aria-pressed="false"
+									>
+										<Icon size={18} aria-hidden="true" />
+										{t.name}
+									</button>
+								);
+							})
+						}
+						<button
+							type="button"
+							data-template="custom"
+							class="btn btn-sm h-auto justify-start gap-2 py-2"
+							aria-pressed="false"
+						>
+							<Pencil size={18} aria-hidden="true" />
+							Custom
+						</button>
+					</div>
+					{
+						TEMPLATES.map((t) => (
+							<p data-template-description={t.id} class="text-base-content/70 mt-1 hidden text-xs">
+								{t.description}
+							</p>
+						))
+					}
+					<p data-template-description="custom" class="text-base-content/70 mt-1 hidden text-xs">
+						Your own rules: written in the Rules tab, loaded from an example or imported. Switching to another
+						type and back keeps them.
+					</p>
+					{
+						[...TEMPLATES.map((t) => t.id), 'custom'].map((id) => {
+							const examples = EXAMPLES.map((ex, i) => ({ ex, i })).filter(({ ex }) =>
+								'def' in ex ? id === 'custom' : ex.template === id,
+							);
+							return (
+								examples.length > 0 && (
+									<div data-template-examples={id} class="mt-1 hidden flex-wrap items-center gap-1">
+										<span class="text-base-content/60 mr-1 text-xs">Examples:</span>
+										{examples.map(({ ex, i }) => (
+											<button type="button" data-example={i} class="btn btn-xs btn-soft btn-primary">
+												{ex.name}
+											</button>
+										))}
+									</div>
+								)
+							);
+						})
+					}
+				</fieldset>
+
+				<fieldset id="builder-params" class="fieldset bg-base-200 rounded-box p-4">
+					<legend class="fieldset-legend">Shape</legend>
+					{
+						TEMPLATES.map((t) => (
+							<div data-template-params={t.id} class="hidden flex-col gap-3">
+								{t.params.map((p) => (
+									<div class="flex flex-col gap-1">
+										{p.type === 'range' && (
+											<label class="flex flex-col gap-1">
+												<span class="flex justify-between text-xs">
+													<span>{p.label}</span>
+													<span class="font-mono">
+														<output data-output-for={p.key} />
+														{p.unit ? ` ${p.unit}` : ''}
+													</span>
+												</span>
+												<input
+													type="range"
+													data-param={p.key}
+													min={p.min}
+													max={p.max}
+													step={p.step}
+													class="range range-xs range-primary"
+												/>
+											</label>
+										)}
+										{p.type === 'select' && (
+											<label class="flex flex-col gap-1">
+												<span class="text-xs">{p.label}</span>
+												<select data-param={p.key} class="select select-sm w-full">
+													{p.options.map((o) => (
+														<option value={o.value}>{o.label}</option>
+													))}
+												</select>
+											</label>
+										)}
+										{p.type === 'toggle' && (
+											<label class="label cursor-pointer gap-2 text-sm">
+												<input type="checkbox" data-param={p.key} class="toggle toggle-sm toggle-primary" />
+												{p.label}
+											</label>
+										)}
+										{p.help && <span class="text-base-content/60 text-xs">{p.help}</span>}
+									</div>
+								))}
+							</div>
+						))
+					}
+					<div data-template-params="custom" class="hidden flex-col gap-3">
+						<p class="text-base-content/70 text-xs">
+							These change how your rules are drawn without rewriting them. To change the shape itself, edit
+							the rules in the <button type="button" class="link" data-mode-link="advanced">Rules tab</button>.
+						</p>
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-xs">
+								<span>Turn angle</span>
+								<span class="font-mono"><output data-custom-output="angle"></output> °</span>
+							</span>
+							<input type="range" data-custom="angle" min="1" max="120" step="1" class="range range-xs range-primary" />
+							<span class="text-base-content/60 text-xs">How far every turn symbol turns.</span>
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-xs">
+								<span>Growth steps</span>
+								<span class="font-mono"><output data-custom-output="iterations"></output></span>
+							</span>
+							<input type="range" data-custom="iterations" min="2" max="8" step="1" class="range range-xs range-primary" />
+							<span class="text-base-content/60 text-xs">
+								How many times the rules are applied. Each step can make the tree much bigger.
+							</span>
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-xs">
+								<span>Size variation</span>
+								<span class="font-mono"><output data-custom-output="random_level"></output></span>
+							</span>
+							<input type="range" data-custom="random_level" min="0" max="4" step="1" class="range range-xs range-primary" />
+							<span class="text-base-content/60 text-xs">Some trees get up to this many growth steps fewer.</span>
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="text-xs">Trunk thickness</span>
+							<select data-custom="trunk_type" class="select select-sm w-full">
+								<option value="single">1 node</option>
+								<option value="double">2×2</option>
+								<option value="crossed">Cross (3 wide)</option>
+							</select>
+						</label>
+						<label class="label cursor-pointer gap-2 text-sm">
+							<input type="checkbox" data-custom="thin_branches" class="toggle toggle-sm toggle-primary" />
+							Thin (1 node) branches
+						</label>
+					</div>
+				</fieldset>
+				<ul id="builder-notes" class="flex flex-col gap-1 text-sm"></ul>
+				<p class="text-base-content/70 text-xs">
+					Curious how it works? Open the{' '}
+					<button type="button" class="link" data-mode-link="advanced">Rules tab</button> to see the rules this
+					makes, and hover any symbol to light up what it draws.
+				</p>
+			</section>
+
+			<!-- Advanced ------------------------------------------------------------------->
+			<section id="advanced-panel" class="hidden flex-col gap-4">
+				<fieldset class="fieldset bg-base-200 rounded-box p-4">
+					<legend class="fieldset-legend">Rules</legend>
+					<p class="text-base-content/70 text-xs">
+						Hover or click a symbol to light up the blocks it draws. Hover a block in the preview to find the
+						symbol that drew it.
+					</p>
+					{
+						ruleFields.map(({ name, label, help }) => (
+							<label class="flex flex-col gap-1">
+								<span class="flex justify-between text-xs">
+									<span>{label}</span>
+									<span class="text-base-content/50">{help}</span>
+								</span>
+								<span class="code-field" data-code-field={name}>
+									<span class="code-backdrop" aria-hidden="true" />
+									<textarea name={name} rows="2" spellcheck="false" class="textarea textarea-sm w-full" />
+								</span>
+							</label>
+						))
+					}
+					<details class="mt-2 text-xs">
+						<summary class="cursor-pointer select-none">Symbol reference</summary>
+						<dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+							{
+								symbols.map(([sym, desc]) => (
+									<>
+										<dt class="font-mono font-semibold">{sym}</dt>
+										<dd class="text-base-content/70">{desc}</dd>
+									</>
+								))
+							}
+						</dl>
+					</details>
+				</fieldset>
+
+				<fieldset class="fieldset bg-base-200 rounded-box p-4">
+					<legend class="fieldset-legend">Growth</legend>
+					<div class="grid grid-cols-2 gap-3">
+						<label class="flex flex-col gap-1">
+							<span class="label text-xs">Angle (°)</span>
+							<input name="angle" type="number" min="-32768" max="32767" class="input input-sm" />
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="label text-xs">Iterations</span>
+							<input name="iterations" type="number" min="2" max="32767" class="input input-sm" />
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="label text-xs">Random level</span>
+							<input name="random_level" type="number" min="0" max="32767" class="input input-sm" />
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="label text-xs">Trunk type</span>
+							<select name="trunk_type" class="select select-sm">
+								<option value="single">single (1 node)</option>
+								<option value="double">double (2×2)</option>
+								<option value="crossed">crossed (3×3 cross)</option>
+							</select>
+						</label>
+					</div>
+					<label class="label mt-2 cursor-pointer gap-2 text-sm">
+						<input name="thin_branches" type="checkbox" class="checkbox checkbox-sm" />
+						Thin (1 node) branches
+					</label>
+				</fieldset>
+			</section>
+
+			<!-- Shared ---------------------------------------------------------------------->
+			<fieldset class="fieldset bg-base-200 rounded-box p-4">
+				<legend class="fieldset-legend">Nodes</legend>
+				{
+					nodeFields.map(({ name, label, kind }) => (
+						<div class="flex items-end gap-2">
+							<label class="flex flex-1 flex-col gap-1">
+								<span class="label text-xs">{label}</span>
+								<input name={name} type="text" class="input input-sm font-mono" />
+							</label>
+							<input
+								type="color"
+								data-color={kind}
+								value={DEFAULT_COLORS[kind]}
+								class="h-8 w-10 cursor-pointer rounded"
+								title={`Preview color for ${label.toLowerCase()}`}
+								aria-label={`Preview color for ${label.toLowerCase()}`}
+							/>
+						</div>
+					))
+				}
+				<div class="mt-1 grid grid-cols-2 gap-3">
+					<label class="flex flex-col gap-1">
+						<span class="label text-xs">Leaves 2 chance (%)</span>
+						<input name="leaves2_chance" type="number" min="0" max="100" class="input input-sm" />
+					</label>
+					<label class="flex flex-col gap-1">
+						<span class="label text-xs">Fruit chance (%)</span>
+						<input name="fruit_chance" type="number" min="0" max="100" class="input input-sm" />
+					</label>
+				</div>
+			</fieldset>
+
+			<fieldset class="fieldset bg-base-200 rounded-box p-4">
+				<legend class="fieldset-legend">Seed</legend>
+				<div class="flex items-end gap-2">
+					<input name="seed" type="number" class="input input-sm flex-1" placeholder="random each time" aria-label="Seed" />
+					<button type="button" id="reroll" class="btn btn-sm btn-square" title="New random seed" aria-label="New random seed">
+						<Dices size={16} aria-hidden="true" />
+					</button>
+				</div>
+				<p class="text-base-content/60 text-xs">
+					In-game, a seed gives a tree like the preview, but the random details (leaves, chance rules, small
+					angle wobble) are rolled differently.
+				</p>
+			</fieldset>
+		</form>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div id="viewer-frame" class="bg-base-200 rounded-box relative h-[60vh] min-h-80 overflow-hidden">
+				<div id="viewer" class="absolute inset-0"></div>
+				<div id="stats" class="bg-base-100/80 rounded-field pointer-events-none absolute top-2 left-2 px-2 py-1 font-mono text-xs whitespace-pre"></div>
+				<div class="absolute top-2 right-2 flex items-center gap-2">
+					<span id="busy" class="loading loading-spinner loading-sm hidden"></span>
+					<button type="button" id="fit" class="btn btn-sm btn-square" title="Reset camera" aria-label="Reset camera">
+						<LocateFixed size={16} aria-hidden="true" />
+					</button>
+					<button type="button" id="fullscreen" class="btn btn-sm btn-square" title="Full screen" aria-label="Full screen">
+						<span data-fullscreen-icon="enter"><Maximize size={16} aria-hidden="true" /></span>
+						<span data-fullscreen-icon="exit" class="hidden"><Minimize size={16} aria-hidden="true" /></span>
+					</button>
+				</div>
+				<div
+					id="inspect"
+					class="bg-base-100/90 rounded-field pointer-events-none absolute right-2 bottom-2 left-2 px-3 py-2 text-sm"
+					aria-live="polite"
+				>
+				</div>
+			</div>
+
+			<ul id="diagnostics" class="flex flex-col gap-1 text-sm"></ul>
+
+			<div class="bg-base-200 rounded-box p-4">
+				<div class="mb-2 flex items-center justify-between gap-2">
+					<div role="tablist" class="tabs tabs-box tabs-sm">
+						<button type="button" role="tab" class="tab tab-active" data-output="spawn">spawn_tree</button>
+						<button type="button" role="tab" class="tab" data-output="decoration">Decoration</button>
+					</div>
+					<button type="button" id="copy" class="btn btn-sm">
+						<Copy size={16} aria-hidden="true" /> Copy
+					</button>
+				</div>
+				<pre id="output" class="bg-base-100 rounded-field overflow-x-auto p-3 text-sm"><code></code></pre>
+			</div>
+		</div>
+	</div>
+
+	<dialog id="import-dialog" class="modal">
+		<div class="modal-box">
+			<h3 class="mb-2 text-lg font-bold">Import treedef</h3>
+			<p class="text-base-content/70 mb-2 text-sm">Paste a Lua treedef table (or code that contains one).</p>
+			<textarea id="import-text" rows="10" spellcheck="false" class="textarea w-full font-mono text-xs"></textarea>
+			<p id="import-message" class="text-warning mt-1 text-xs"></p>
+			<div class="modal-action">
+				<form method="dialog"><button type="submit" class="btn btn-ghost">Cancel</button></form>
+				<button type="button" id="import-apply" class="btn btn-primary">Import</button>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop"><button type="submit">close</button></form>
+	</dialog>
+</Layout>
+
+<style is:global>
+	/* A textarea over a backdrop that mirrors its text, so characters can be
+	   highlighted. Both must lay text out identically. */
+	.code-field {
+		position: relative;
+		display: block;
+		background: var(--color-base-100);
+		border-radius: var(--radius-field);
+	}
+	.code-field > textarea,
+	.code-field > .code-backdrop {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.8125rem;
+		line-height: 1.5;
+		letter-spacing: 0;
+		padding: 0.375rem 0.75rem;
+		border-width: 1px;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		word-break: break-all;
+	}
+	.code-field > textarea {
+		position: relative;
+		z-index: 1;
+		background: transparent;
+		min-height: 0;
+		height: auto;
+	}
+	.code-field > .code-backdrop {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		border-color: transparent;
+		color: transparent;
+		border-radius: inherit;
+	}
+	.code-backdrop .hl {
+		background: color-mix(in oklab, var(--color-primary) 22%, transparent);
+	}
+	.code-backdrop .hl-strong {
+		background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+		border-radius: 2px;
+	}
+</style>
+
+<script>
+	import {
+		type BuiltFields,
+		defaultValues,
+		getTemplate,
+		normalizeValues,
+		type ParamValues,
+		TEMPLATES,
+	} from '../../lib/lsystem/builder';
+	import { EXAMPLES } from '../../lib/lsystem/examples';
+	import type { NodeKind, PickInfo, SourceField } from '../../lib/lsystem/generate';
+	import { NODE_KINDS } from '../../lib/lsystem/generate';
+	import { parseLuaTreedef, toDecorationSnippet, toSpawnTreeSnippet } from '../../lib/lsystem/lua';
+	import { randomSeed } from '../../lib/lsystem/random';
+	import { DEFAULT_TREEDEF, TRUNK_TYPES, type TreeDef, type TrunkType } from '../../lib/lsystem/treedef';
+	import { type BlockRef, DEFAULT_COLORS, type NodeColors, TreeViewer } from '../../lib/lsystem/viewer';
+	import type { WorkerRequest, WorkerResponse } from '../../lib/lsystem/worker';
+
+	const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel) as T;
+	const $$ = <T extends HTMLElement>(sel: string) => [...document.querySelectorAll<T>(sel)];
+
+	const form = $<HTMLFormElement>('#treedef');
+	const statsEl = $('#stats');
+	const busyEl = $('#busy');
+	const inspectEl = $('#inspect');
+	const diagnosticsEl = $('#diagnostics');
+	const outputEl = $('#output').querySelector('code') as HTMLElement;
+
+	const viewer = new TreeViewer($('#viewer'));
+	const worker = new Worker(new URL('../../lib/lsystem/worker.ts', import.meta.url), { type: 'module' });
+	const send = (req: WorkerRequest) => worker.postMessage(req);
+
+	let outputMode: 'spawn' | 'decoration' = 'spawn';
+	let requestId = 0;
+	/** Generation shown in the viewer */
+	let shownGeneration = -1;
+	let recenterNext = true;
+
+	// ---- builder state ---------------------------------------------------------
+
+	/** The "Custom" tree type: the user's own rules */
+	const CUSTOM = 'custom';
+
+	interface BuilderState {
+		/** A template id, or CUSTOM */
+		template: string;
+		/** Remembered settings for each template, so switching back restores them */
+		values: Record<string, ParamValues>;
+		/** Remembered rules for Custom, so switching away and back keeps them */
+		custom: BuiltFields | null;
+		/** The last rules a template wrote */
+		lastBuilt: { template: string; fields: BuiltFields } | null;
+		/**
+		 * The template that Custom was branched from by editing its rules. If the
+		 * rules are edited back to exactly its output, it's selected again.
+		 */
+		origin: { template: string; fields: BuiltFields } | null;
+	}
+	const builder: BuilderState = {
+		template: TEMPLATES[0].id,
+		values: {},
+		custom: null,
+		lastBuilt: null,
+		origin: null,
+	};
+
+	const isCustom = () => builder.template === CUSTOM;
+
+	function currentValues(): ParamValues {
+		const t = getTemplate(builder.template);
+		builder.values[t.id] = normalizeValues(t, builder.values[t.id] ?? defaultValues(t));
+		return builder.values[t.id];
+	}
+
+	const RULE_FIELDS = [
+		'axiom',
+		'rules_a',
+		'rules_b',
+		'rules_c',
+		'rules_d',
+		'angle',
+		'iterations',
+		'random_level',
+		'trunk_type',
+		'thin_branches',
+	] as const satisfies readonly (keyof BuiltFields)[];
+	const ruleAndGrowthFields = new Set<string>(RULE_FIELDS);
+
+	/** The fields a template writes, as currently in the form */
+	function readRuleFields(): BuiltFields {
+		const def = readForm();
+		return Object.fromEntries(RULE_FIELDS.map((k) => [k, def[k]])) as unknown as BuiltFields;
+	}
+
+	function sameRuleFields(a: BuiltFields, b: BuiltFields) {
+		return RULE_FIELDS.every((k) => a[k] === b[k]);
+	}
+
+	/** Write the selected template's rules into the form (Custom writes none) */
+	function applyBuilder() {
+		const notesEl = $('#builder-notes');
+		if (isCustom()) {
+			notesEl.replaceChildren();
+			return;
+		}
+		const { fields, notes } = getTemplate(builder.template).build(currentValues());
+		writeForm(fields);
+		builder.lastBuilt = { template: builder.template, fields };
+		notesEl.replaceChildren(
+			...notes.map((n) => {
+				const li = document.createElement('li');
+				li.className = 'alert alert-warning alert-soft py-1';
+				li.textContent = n;
+				return li;
+			}),
+		);
+	}
+
+	function renderBuilder() {
+		for (const btn of $$<HTMLButtonElement>('[data-template]')) {
+			const active = btn.dataset.template === builder.template;
+			btn.classList.toggle('btn-primary', active);
+			btn.setAttribute('aria-pressed', String(active));
+		}
+		for (const el of $$('[data-template-description]')) {
+			el.classList.toggle('hidden', el.dataset.templateDescription !== builder.template);
+		}
+		for (const el of $$('[data-template-examples]')) {
+			const active = el.dataset.templateExamples === builder.template;
+			el.classList.toggle('hidden', !active);
+			el.classList.toggle('flex', active);
+		}
+		for (const group of $$('[data-template-params]')) {
+			const active = group.dataset.templateParams === builder.template;
+			group.classList.toggle('hidden', !active);
+			group.classList.toggle('flex', active);
+		}
+		if (isCustom()) {
+			// Custom's controls show the form's own fields
+			for (const input of $$<HTMLInputElement | HTMLSelectElement>('[data-custom]')) {
+				const source = field<HTMLInputElement | HTMLSelectElement>(input.dataset.custom as string);
+				if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+					input.checked = (source as HTMLInputElement).checked;
+				} else {
+					input.value = source.value;
+				}
+			}
+			for (const out of $$<HTMLOutputElement>('[data-custom-output]')) {
+				out.value = field(out.dataset.customOutput as string).value;
+			}
+			return;
+		}
+		const values = currentValues();
+		for (const group of $$(`[data-template-params="${builder.template}"]`)) {
+			for (const input of group.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]')) {
+				const value = values[input.dataset.param as string];
+				if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(value);
+				else input.value = String(value);
+			}
+			for (const out of group.querySelectorAll<HTMLOutputElement>('[data-output-for]')) {
+				out.value = String(values[out.dataset.outputFor as string]);
+			}
+		}
+	}
+
+	function selectTemplate(id: string) {
+		if (id === CUSTOM) {
+			if (builder.custom) writeForm(builder.custom);
+			else builder.custom = readRuleFields(); // start from what's showing
+		}
+		builder.template = id;
+		builder.origin = null;
+		recenterNext = true;
+		applyBuilder();
+		renderBuilder();
+		update();
+	}
+
+	for (const btn of $$<HTMLButtonElement>('[data-template]')) {
+		btn.addEventListener('click', () => selectTemplate(btn.dataset.template as string));
+	}
+
+	/** The rules were edited by hand: keep them as Custom */
+	function rulesEdited() {
+		const fields = readRuleFields();
+		if (!isCustom()) {
+			builder.origin = builder.lastBuilt;
+			builder.template = CUSTOM;
+		}
+		builder.custom = fields;
+		// Edited back to exactly the template's output (e.g. by undoing)
+		if (builder.origin && sameRuleFields(fields, builder.origin.fields)) {
+			builder.template = builder.origin.template;
+			builder.origin = null;
+		}
+		applyBuilder();
+		renderBuilder();
+	}
+
+	$('#builder-params').addEventListener('input', (e) => {
+		e.stopPropagation(); // not a treedef field
+		const input = e.target as HTMLInputElement | HTMLSelectElement;
+		const customField = input.dataset.custom;
+		if (customField) {
+			// Custom's controls write straight into the form's own fields
+			const target = field<HTMLInputElement | HTMLSelectElement>(customField);
+			if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+				(target as HTMLInputElement).checked = input.checked;
+			} else {
+				target.value = input.value;
+			}
+			builder.custom = readRuleFields();
+			renderBuilder();
+			scheduleUpdate();
+			return;
+		}
+		const key = input.dataset.param;
+		if (!key) return;
+		const values = currentValues();
+		values[key] =
+			input instanceof HTMLInputElement && input.type === 'checkbox'
+				? input.checked
+				: input instanceof HTMLInputElement && input.type === 'range'
+					? Number(input.value)
+					: input.value;
+		applyBuilder();
+		renderBuilder();
+		scheduleUpdate();
+	});
+
+	// ---- tabs --------------------------------------------------------------------
+
+	function setMode(mode: 'builder' | 'advanced') {
+		for (const tab of $$<HTMLButtonElement>('[data-mode]')) {
+			const active = tab.dataset.mode === mode;
+			tab.classList.toggle('tab-active', active);
+			tab.setAttribute('aria-selected', String(active));
+		}
+		for (const [id, m] of [
+			['#builder-panel', 'builder'],
+			['#advanced-panel', 'advanced'],
+		] as const) {
+			$(id).classList.toggle('hidden', mode !== m);
+			$(id).classList.toggle('flex', mode === m);
+		}
+		if (mode === 'advanced') for (const f of codeFields.values()) f.render();
+	}
+	for (const tab of $$<HTMLButtonElement>('[data-mode]')) {
+		tab.addEventListener('click', () => setMode(tab.dataset.mode as 'builder' | 'advanced'));
+	}
+	for (const link of $$<HTMLButtonElement>('[data-mode-link]')) {
+		link.addEventListener('click', () => setMode(link.dataset.modeLink as 'builder' | 'advanced'));
+	}
+
+	// ---- form <-> treedef ----------------------------------------------------
+
+	function field<T extends HTMLElement = HTMLInputElement>(name: string) {
+		return form.elements.namedItem(name) as unknown as T;
+	}
+
+	function readForm(): TreeDef {
+		const num = (name: string, fallback: number) => {
+			const v = Number.parseInt(field(name).value, 10);
+			return Number.isFinite(v) ? v : fallback;
+		};
+		const text = (name: string) => field<HTMLInputElement | HTMLTextAreaElement>(name).value.trim();
+		const seedRaw = field('seed').value.trim();
+		const trunkType = field<HTMLSelectElement>('trunk_type').value as TrunkType;
+		return {
+			axiom: text('axiom'),
+			rules_a: text('rules_a'),
+			rules_b: text('rules_b'),
+			rules_c: text('rules_c'),
+			rules_d: text('rules_d'),
+			trunk: text('trunk'),
+			leaves: text('leaves'),
+			leaves2: text('leaves2'),
+			leaves2_chance: num('leaves2_chance', 0),
+			angle: num('angle', DEFAULT_TREEDEF.angle),
+			iterations: num('iterations', DEFAULT_TREEDEF.iterations),
+			random_level: num('random_level', 0),
+			trunk_type: TRUNK_TYPES.includes(trunkType) ? trunkType : 'single',
+			thin_branches: field('thin_branches').checked,
+			fruit: text('fruit'),
+			fruit_chance: num('fruit_chance', 0),
+			seed: seedRaw === '' ? undefined : Number.parseInt(seedRaw, 10) | 0,
+		};
+	}
+
+	function writeForm(def: Partial<TreeDef>) {
+		for (const [key, value] of Object.entries(def) as [keyof TreeDef, unknown][]) {
+			const el = field<HTMLInputElement>(key);
+			if (!el) continue;
+			if (el.type === 'checkbox') el.checked = Boolean(value);
+			else el.value = value === undefined ? '' : String(value);
+		}
+		for (const f of codeFields.values()) f.render();
+	}
+
+	function readColors(): NodeColors {
+		const colors = { ...DEFAULT_COLORS };
+		for (const el of $$<HTMLInputElement>('[data-color]')) {
+			colors[el.dataset.color as NodeKind] = el.value;
+		}
+		return colors;
+	}
+
+	// ---- URL hash sharing ------------------------------------------------------
+
+	interface SharedState {
+		v: 2;
+		def: TreeDef;
+		/** The selected tree type (null in older links means Custom) */
+		builder: { template: string; values: ParamValues } | null;
+	}
+
+	function encodeState(state: SharedState): string {
+		const bytes = new TextEncoder().encode(JSON.stringify(state));
+		return btoa(String.fromCharCode(...bytes))
+			.replace(/\+/g, '-')
+			.replace(/\//g, '_')
+			.replace(/=+$/, '');
+	}
+
+	function decodeState(hash: string): SharedState | null {
+		try {
+			const b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+			const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+			const parsed = JSON.parse(new TextDecoder().decode(bytes));
+			if (parsed?.v === 2) return { ...parsed, def: { ...DEFAULT_TREEDEF, ...parsed.def } };
+			// Links from before the builder held just the treedef
+			return { v: 2, def: { ...DEFAULT_TREEDEF, ...parsed }, builder: null };
+		} catch {
+			return null;
+		}
+	}
+
+	// ---- text fields with highlightable characters -------------------------------
+
+	class CodeField {
+		readonly textarea: HTMLTextAreaElement;
+		private backdrop: HTMLElement;
+		private marks: { from: number; to: number; strong: number[] } | null = null;
+
+		constructor(
+			readonly name: SourceField,
+			wrapper: HTMLElement,
+		) {
+			this.textarea = wrapper.querySelector('textarea') as HTMLTextAreaElement;
+			this.backdrop = wrapper.querySelector('.code-backdrop') as HTMLElement;
+			this.textarea.addEventListener('scroll', () => {
+				this.backdrop.scrollTop = this.textarea.scrollTop;
+			});
+			this.textarea.addEventListener('input', () => this.fitHeight());
+		}
+
+		/** Characters before the trimmed text that the generator sees */
+		get offset() {
+			const v = this.textarea.value;
+			return v.length - v.trimStart().length;
+		}
+
+		/** Highlight columns [from, to) of the trimmed text, with some stronger */
+		mark(from: number, to: number, strong: number[] = []) {
+			this.marks = { from, to, strong };
+			this.render();
+		}
+
+		clearMarks() {
+			if (!this.marks) return;
+			this.marks = null;
+			this.render();
+		}
+
+		fitHeight() {
+			this.textarea.style.height = 'auto';
+			this.textarea.style.height = `${this.textarea.scrollHeight + 2}px`;
+		}
+
+		render() {
+			const text = this.textarea.value;
+			const off = this.offset;
+			const frag = document.createDocumentFragment();
+			for (let i = 0; i < text.length; i++) {
+				const span = document.createElement('span');
+				span.textContent = text[i];
+				span.dataset.col = String(i - off);
+				const m = this.marks;
+				const col = i - off;
+				if (m?.strong.includes(col)) span.className = 'hl-strong';
+				else if (m && col >= m.from && col < m.to) span.className = 'hl';
+				frag.append(span);
+			}
+			// Keeps the last line's height when the text ends with a newline
+			frag.append(document.createTextNode('​'));
+			this.backdrop.replaceChildren(frag);
+			this.fitHeight();
+			this.backdrop.scrollTop = this.textarea.scrollTop;
+		}
+
+		/** Column (in trimmed text) under a screen point, if any */
+		columnAt(x: number, y: number): number | null {
+			for (const el of document.elementsFromPoint(x, y)) {
+				if (el.parentElement === this.backdrop && el instanceof HTMLElement && el.dataset.col) {
+					const col = Number(el.dataset.col);
+					return col >= 0 && col < this.textarea.value.trim().length ? col : null;
+				}
+			}
+			return null;
+		}
+	}
+
+	const codeFields = new Map<SourceField, CodeField>();
+	for (const wrapper of $$('[data-code-field]')) {
+		const name = wrapper.dataset.codeField as SourceField;
+		codeFields.set(name, new CodeField(name, wrapper));
+	}
+
+	// ---- linking text <-> blocks -------------------------------------------------
+
+	type Focus =
+		| { type: 'text'; field: SourceField; from: number; to: number; at: number }
+		| { type: 'block'; block: BlockRef; info: PickInfo };
+
+	let hoverFocus: Focus | null = null;
+	let pinnedFocus: Focus | null = null;
+	let caretFocus: Focus | null = null;
+	let highlightRequest = 0;
+	/** Whether the current highlight should shrink unlit blocks */
+	let highlightShrink = false;
+	let pickRequest = 0;
+	let pendingPick: { id: number; block: BlockRef; pin: boolean } | null = null;
+
+	const SYMBOL_HELP: Record<string, string> = {
+		G: 'move forward without drawing',
+		F: 'draw trunk (inside [ ], a branch with leaves)',
+		f: 'draw a leaf',
+		T: 'draw trunk',
+		R: 'place fruit',
+		A: 'replaced by Rules A',
+		B: 'replaced by Rules B',
+		C: 'replaced by Rules C',
+		D: 'replaced by Rules D',
+		a: 'replaced by Rules A (90% chance)',
+		b: 'replaced by Rules B (80% chance)',
+		c: 'replaced by Rules C (70% chance)',
+		d: 'replaced by Rules D (60% chance)',
+		'+': 'turn right',
+		'-': 'turn left',
+		'&': 'tilt down',
+		'^': 'tilt up',
+		'/': 'roll right',
+		'*': 'roll left',
+		'[': 'start a branch (saves position)',
+		']': 'end a branch (goes back)',
+	};
+	const FIELD_LABEL: Record<SourceField, string> = {
+		axiom: 'Axiom',
+		rules_a: 'Rules A',
+		rules_b: 'Rules B',
+		rules_c: 'Rules C',
+		rules_d: 'Rules D',
+	};
+
+	/**
+	 * The text a symbol column refers to: a whole [ … ] for brackets, and for
+	 * turns or G (which draw nothing) everything after it in the same branch.
+	 */
+	function textFocus(name: SourceField, col: number, to = col + 1): Focus {
+		const text = field<HTMLTextAreaElement>(name).value.trim();
+		let from = col;
+		if (to === col + 1 && '+-&^/*G'.includes(text[col])) {
+			let depth = 0;
+			to = text.length;
+			for (let i = col + 1; i < text.length; i++) {
+				if (text[i] === '[') depth += 1;
+				if (text[i] === ']') depth -= 1;
+				if (depth < 0) {
+					to = i;
+					break;
+				}
+			}
+		} else if (to === col + 1 && (text[col] === '[' || text[col] === ']')) {
+			const step = text[col] === '[' ? 1 : -1;
+			let depth = 0;
+			for (let i = col; i >= 0 && i < text.length; i += step) {
+				if (text[i] === '[') depth += 1;
+				if (text[i] === ']') depth -= 1;
+				if (depth === 0) {
+					from = Math.min(col, i);
+					to = Math.max(col, i) + 1;
+					break;
+				}
+			}
+		}
+		return { type: 'text', field: name, from, to, at: col };
+	}
+
+	function describeText(f: Extract<Focus, { type: 'text' }>) {
+		const text = field<HTMLTextAreaElement>(f.field).value.trim();
+		const ch = text[f.at];
+		const what = SYMBOL_HELP[ch] ?? 'not a symbol (ignored)';
+		const note = '+-&^/*G'.includes(ch) ? '. Lit up: everything drawn after it in this branch.' : '';
+		return `<b class="font-mono">${escapeHtml(ch)}</b> in ${FIELD_LABEL[f.field]} — ${what}${note}`;
+	}
+
+	function describeBlock(f: Extract<Focus, { type: 'block' }>) {
+		const [own, ...via] = f.info.chain;
+		const what = SYMBOL_HELP[f.info.symbol] ?? '';
+		const kind = f.block.kind === 'trunk' ? 'Trunk' : f.block.kind === 'fruit' ? 'Fruit' : 'Leaf';
+		let html = `${kind} block, drawn by <b class="font-mono">${escapeHtml(f.info.symbol)}</b> in ${FIELD_LABEL[own.field]} (${what})`;
+		if (via.length) {
+			html += ` · via ${via.map((r) => `<b class="font-mono">${escapeHtml(charAt(r))}</b> in ${FIELD_LABEL[r.field]}`).join(', ')}`;
+		}
+		return html;
+	}
+
+	function charAt(ref: { field: SourceField; index: number }) {
+		return field<HTMLTextAreaElement>(ref.field).value.trim()[ref.index] ?? '?';
+	}
+
+	function escapeHtml(s: string) {
+		return s.replace(/[&<>"]/g, (c) => `&${{ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot' }[c]};`);
+	}
+
+	const IDLE_HINT =
+		'<span class="text-base-content/60">Hover a block to see which symbol drew it, or click it to select it. Drag to rotate, scroll to zoom.</span>';
+
+	/** Second line under a description, explaining what the preview is showing */
+	function hint(text: string) {
+		return `<br><span class="text-base-content/60 text-xs">${text}</span>`;
+	}
+
+	/** Show whichever focus wins: hover, then a clicked block, then the caret */
+	function applyFocus() {
+		const focus = hoverFocus ?? pinnedFocus ?? caretFocus;
+		for (const f of codeFields.values()) f.clearMarks();
+		highlightRequest++;
+		// Don't reshape the tree under the pointer while hovering blocks
+		highlightShrink = focus?.type === 'text' || (focus !== null && focus === pinnedFocus);
+		if (!focus) {
+			viewer.setHighlight(null);
+			inspectEl.innerHTML = IDLE_HINT;
+			return;
+		}
+		if (focus.type === 'text') {
+			codeFields.get(focus.field)?.mark(focus.from, focus.to, [focus.at]);
+			inspectEl.innerHTML =
+				describeText(focus) + hint('Full-size blocks are what it draws. The rest are shrunk so you can see them.');
+			send({ type: 'blocksFrom', id: highlightRequest, field: focus.field, from: focus.from, to: focus.to });
+		} else {
+			const [own, ...via] = focus.info.chain;
+			for (const ref of via) codeFields.get(ref.field)?.mark(ref.index, ref.index + 1);
+			codeFields.get(own.field)?.mark(own.index, own.index + 1, [own.index]);
+			inspectEl.innerHTML =
+				describeBlock(focus) +
+				hint(
+					focus === pinnedFocus
+						? 'Full-size blocks were drawn by the same symbol; the rest are shrunk so you can see them. Click empty space or press Esc to clear.'
+						: 'The outline marks the block under the pointer. Brighter blocks were drawn by the same symbol. Click to select.',
+				);
+			send({ type: 'blocksFrom', id: highlightRequest, field: own.field, from: own.index, to: own.index + 1 });
+		}
+	}
+
+	for (const f of codeFields.values()) {
+		const ta = f.textarea;
+		ta.addEventListener('mousemove', (e) => {
+			const col = f.columnAt(e.clientX, e.clientY);
+			const next = col === null ? null : textFocus(f.name, col);
+			const same =
+				next?.type === 'text' &&
+				hoverFocus?.type === 'text' &&
+				next.field === hoverFocus.field &&
+				next.at === hoverFocus.at;
+			if (same || (next === null && hoverFocus === null)) return;
+			hoverFocus = next;
+			applyFocus();
+		});
+		ta.addEventListener('mouseleave', () => {
+			if (!hoverFocus) return;
+			hoverFocus = null;
+			applyFocus();
+		});
+		const updateCaret = () => {
+			if (document.activeElement !== ta) return;
+			const len = ta.value.trim().length;
+			const off = f.offset;
+			const start = ta.selectionStart - off;
+			const end = ta.selectionEnd - off;
+			if (len === 0) caretFocus = null;
+			else if (end > start) caretFocus = { type: 'text', field: f.name, from: Math.max(0, start), to: Math.min(len, end), at: Math.max(0, start) };
+			else caretFocus = textFocus(f.name, Math.min(Math.max(0, start), len - 1));
+			pinnedFocus = null;
+			applyFocus();
+		};
+		ta.addEventListener('click', updateCaret);
+		ta.addEventListener('keyup', (e) => {
+			if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') updateCaret();
+		});
+		ta.addEventListener('select', updateCaret);
+		ta.addEventListener('blur', () => {
+			if (!caretFocus) return;
+			caretFocus = null;
+			applyFocus();
+		});
+		ta.addEventListener('input', () => {
+			caretFocus = null;
+			hoverFocus = null;
+			pinnedFocus = null;
+			f.render();
+		});
+	}
+
+	viewer.onHover = (block) => {
+		pickRequest++;
+		if (!block) {
+			if (hoverFocus?.type === 'block') {
+				hoverFocus = null;
+				applyFocus();
+			}
+			return;
+		}
+		send({ type: 'pick', id: pickRequest, kind: block.kind, index: block.index });
+		pendingPick = { id: pickRequest, block, pin: false };
+	};
+	viewer.onClick = (block) => {
+		if (!block) {
+			pinnedFocus = null;
+			applyFocus();
+			return;
+		}
+		pickRequest++;
+		send({ type: 'pick', id: pickRequest, kind: block.kind, index: block.index });
+		pendingPick = { id: pickRequest, block, pin: true };
+	};
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && pinnedFocus) {
+			pinnedFocus = null;
+			applyFocus();
+		}
+	});
+
+	// ---- worker ------------------------------------------------------------------
+
+	worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+		const msg = event.data;
+		if (msg.type === 'generate') {
+			if (msg.id !== requestId) return; // stale
+			busyEl.classList.add('hidden');
+			if (msg.error || !msg.result) {
+				renderDiagnostics([{ level: 'error', message: msg.error ?? 'Unknown error' }]);
+				return;
+			}
+			const result = msg.result;
+			shownGeneration = msg.id;
+			viewer.setVoxels(result.voxels, result.bounds, recenterNext);
+			recenterNext = false;
+
+			const { min, max } = result.bounds;
+			const size = [0, 1, 2].map((a) => max[a] - min[a] + 1).join('×');
+			const counts = NODE_KINDS.filter((k) => result.voxels[k].length)
+				.map((k) => `${k} ${result.voxels[k].length / 3}`)
+				.join(' · ');
+			statsEl.textContent = `${result.nodeCount.toLocaleString()} nodes · ${size}\n${counts}`;
+			renderDiagnostics(result.diagnostics);
+			// Block indices changed, so a clicked block no longer means anything
+			pinnedFocus = null;
+			if (hoverFocus?.type === 'block') hoverFocus = null;
+			applyFocus();
+		} else if (msg.type === 'blocksFrom') {
+			if (msg.id !== highlightRequest || msg.generation !== shownGeneration) return;
+			viewer.setHighlight(msg.blocks, { shrink: highlightShrink });
+		} else if (msg.type === 'pick') {
+			if (!pendingPick || msg.id !== pendingPick.id || msg.generation !== shownGeneration) return;
+			const { block, pin } = pendingPick;
+			pendingPick = null;
+			if (!msg.info) return;
+			const focus: Focus = { type: 'block', block, info: msg.info };
+			if (pin) {
+				pinnedFocus = focus;
+				hoverFocus = null;
+				const own = msg.info.chain[0];
+				codeFields.get(own.field)?.textarea.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			} else {
+				hoverFocus = focus;
+			}
+			applyFocus();
+		}
+	};
+
+	function renderDiagnostics(list: { level: 'error' | 'warning'; message: string }[]) {
+		diagnosticsEl.replaceChildren(
+			...list.map(({ level, message }) => {
+				const li = document.createElement('li');
+				li.className = `alert alert-soft py-1 ${level === 'error' ? 'alert-error' : 'alert-warning'}`;
+				li.textContent = message;
+				return li;
+			}),
+		);
+	}
+
+	function update() {
+		const def = readForm();
+		outputEl.textContent = outputMode === 'spawn' ? toSpawnTreeSnippet(def) : toDecorationSnippet(def);
+		const state: SharedState = {
+			v: 2,
+			def,
+			builder: { template: builder.template, values: isCustom() ? {} : currentValues() },
+		};
+		history.replaceState(null, '', `#${encodeState(state)}`);
+
+		requestId++;
+		busyEl.classList.remove('hidden');
+		send({ type: 'generate', id: requestId, def, options: {} });
+	}
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	function scheduleUpdate() {
+		clearTimeout(timer);
+		timer = setTimeout(update, 120);
+	}
+
+	// ---- wiring ------------------------------------------------------------------
+
+	form.addEventListener('input', (e) => {
+		const target = e.target as HTMLInputElement;
+		if (target.dataset.color) {
+			viewer.setColors(readColors());
+			return;
+		}
+		if (ruleAndGrowthFields.has(target.name)) rulesEdited();
+		scheduleUpdate();
+	});
+	form.addEventListener('submit', (e) => e.preventDefault());
+
+	$('#reroll').addEventListener('click', () => {
+		field('seed').value = String(randomSeed());
+		update();
+	});
+	$('#fit').addEventListener('click', () => viewer.fitView());
+
+	const viewerFrame = $('#viewer-frame');
+	const fullscreenButton = $('#fullscreen');
+	fullscreenButton.addEventListener('click', () => {
+		if (document.fullscreenElement) void document.exitFullscreen();
+		else viewerFrame.requestFullscreen().catch(() => {});
+	});
+	document.addEventListener('fullscreenchange', () => {
+		const on = document.fullscreenElement === viewerFrame;
+		for (const el of $$('[data-fullscreen-icon]')) {
+			el.classList.toggle('hidden', (el.dataset.fullscreenIcon === 'exit') !== on);
+		}
+		const label = on ? 'Exit full screen' : 'Full screen';
+		fullscreenButton.title = label;
+		fullscreenButton.setAttribute('aria-label', label);
+	});
+
+	/** Load hand-written rules (an example or an import) as Custom */
+	function loadCustom(def: TreeDef) {
+		writeForm(def);
+		builder.custom = readRuleFields();
+		builder.template = CUSTOM;
+		builder.origin = null;
+		recenterNext = true;
+		applyBuilder();
+		renderBuilder();
+		update();
+	}
+
+	/** Examples sit under their tree type; loading one sets its sliders and node names */
+	for (const btn of $$<HTMLButtonElement>('[data-example]')) {
+		btn.addEventListener('click', () => {
+			const example = EXAMPLES[Number(btn.dataset.example)];
+			if (!example) return;
+			if ('def' in example) {
+				loadCustom({ ...example.def, ...example.nodes });
+				return;
+			}
+			writeForm(example.nodes);
+			const template = getTemplate(example.template);
+			builder.values[template.id] = normalizeValues(template, example.values);
+			selectTemplate(template.id);
+		});
+	}
+
+	for (const tab of $$<HTMLButtonElement>('[data-output]')) {
+		tab.addEventListener('click', () => {
+			outputMode = tab.dataset.output as typeof outputMode;
+			for (const t of $$('[data-output]')) t.classList.toggle('tab-active', t === tab);
+			update();
+		});
+	}
+
+	async function copyWithFeedback(button: HTMLButtonElement, text: string) {
+		await navigator.clipboard.writeText(text);
+		const original = button.innerHTML;
+		button.textContent = 'Copied!';
+		setTimeout(() => {
+			button.innerHTML = original;
+		}, 1200);
+	}
+
+	$<HTMLButtonElement>('#copy').addEventListener('click', (e) =>
+		copyWithFeedback(e.currentTarget as HTMLButtonElement, outputEl.textContent ?? ''),
+	);
+	$<HTMLButtonElement>('#share').addEventListener('click', (e) =>
+		copyWithFeedback(e.currentTarget as HTMLButtonElement, location.href),
+	);
+
+	const importDialog = $<HTMLDialogElement>('#import-dialog');
+	const importText = $<HTMLTextAreaElement>('#import-text');
+	const importMessage = $('#import-message');
+	$('#import-open').addEventListener('click', () => {
+		importMessage.textContent = '';
+		importDialog.showModal();
+	});
+	$('#import-apply').addEventListener('click', () => {
+		const { def, ignored } = parseLuaTreedef(importText.value);
+		if (!def.axiom) {
+			importMessage.textContent = 'No axiom found in the pasted text.';
+			return;
+		}
+		importDialog.close();
+		loadCustom(def);
+		if (ignored.length) console.info('Ignored fields on import:', ignored);
+	});
+
+	// ---- init --------------------------------------------------------------------
+
+	const shared = location.hash.length > 1 ? decodeState(location.hash.slice(1)) : null;
+	writeForm(shared?.def ?? DEFAULT_TREEDEF);
+	if (shared && (!shared.builder || shared.builder.template === CUSTOM)) {
+		builder.template = CUSTOM;
+		builder.custom = readRuleFields();
+	} else if (shared?.builder) {
+		builder.template = getTemplate(shared.builder.template).id;
+		builder.values[builder.template] = shared.builder.values;
+	}
+	applyBuilder();
+	renderBuilder();
+	viewer.setColors(readColors());
+	inspectEl.innerHTML = IDLE_HINT;
+	update();
+</script>

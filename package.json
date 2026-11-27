@@ -16,12 +16,14 @@
 	},
 	"dependencies": {
 		"@lucide/astro": "^1.77.0",
-		"astro": "^7.4.13"
+		"astro": "^7.4.13",
+		"three": "^0.187.0"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.12",
 		"@biomejs/biome": "^2.6.8",
 		"@tailwindcss/vite": "^4.3.5",
+		"@types/three": "^0.187.0",
 		"daisyui": "^5.8.2",
 		"tailwindcss": "^4.3.5",
 		"typescript": "^6.0.3"

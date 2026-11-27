@@ -1,4 +1,5 @@
 ---
+import BookOpen from '@lucide/astro/icons/book-open';
 import Box from '@lucide/astro/icons/box';
 import Boxes from '@lucide/astro/icons/boxes';
 import LayoutTemplate from '@lucide/astro/icons/layout-template';
@@ -11,7 +12,13 @@ import Wrench from '@lucide/astro/icons/wrench';
 import Logo from '../assets/luanti.svg';
 import Layout from '../layouts/Layout.astro';
 
-const tools = [
+const tools: {
+	name: string;
+	description: string;
+	icon: typeof Box;
+	href?: string; //tool link
+	docsHref?: string; //documentation link
+}[] = [
 	{
 		name: 'Formspec Editor',
 		description: 'Build and preview formspec GUIs visually.',
@@ -48,9 +55,11 @@ const tools = [
 		icon: Sparkles,
 	},
 	{
-		name: 'L-System Designer',
+		name: 'L-System Editor',
 		description: 'Grow L-system trees and tweak their rules.',
 		icon: Sprout,
+		href: '/l-system/editor',
+		docsHref: '/l-system',
 	},
 ];
 ---
@@ -74,16 +83,39 @@ const tools = [
 		<h2 class="mb-4 text-2xl font-semibold">Tools</h2>
 		<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{
-				tools.map(({ name, description, icon: Icon }) => (
-					<li class="card card-border bg-base-100 transition hover:-translate-y-0.5 hover:shadow-md">
+				tools.map(({ name, description, icon: Icon, href, docsHref }) => (
+					<li class="card card-border bg-base-100 relative transition hover:-translate-y-0.5 hover:shadow-md">
 						<div class="card-body">
 							<div class="bg-primary/10 text-primary rounded-field mb-2 grid size-11 place-items-center">
 								<Icon size={22} aria-hidden="true" />
 							</div>
-							<h3 class="card-title text-base">{name}</h3>
+							<h3 class="card-title text-base">
+								{href ? (
+									<a href={href} class="after:absolute after:inset-0">
+										{name}
+									</a>
+								) : (
+									name
+								)}
+							</h3>
 							<p class="text-base-content/70 text-sm">{description}</p>
-							<div class="card-actions mt-2 justify-end">
-								<span class="badge badge-ghost badge-sm">Coming soon</span>
+							<div class="card-actions mt-2 items-center justify-end">
+								{href ? (
+									<>
+										<span class="badge badge-primary badge-soft badge-sm mr-auto">Preview</span>
+										{docsHref && (
+											<a href={docsHref} class="btn btn-ghost btn-xs relative z-10">
+												<BookOpen size={14} aria-hidden="true" />
+												Docs
+											</a>
+										)}
+										<a href={href} class="btn btn-primary btn-xs relative z-10">
+											Open
+										</a>
+									</>
+								) : (
+									<span class="badge badge-ghost badge-sm">Coming soon</span>
+								)}
 							</div>
 						</div>
 					</li>
