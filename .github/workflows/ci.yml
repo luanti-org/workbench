@@ -23,3 +23,6 @@ jobs:
 
       - name: Astro check
         run: npm run check
+
+      - name: Tests
+        run: npm test

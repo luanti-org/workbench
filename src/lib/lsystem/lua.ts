@@ -79,7 +79,7 @@ export function parseLuaTreedef(source: string): {
 	const ignored: string[] = [];
 	const known = new Set<string>(FIELD_ORDER);
 	const pattern =
-		/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\[\[[\s\S]*?\]\]|-?\d+(?:\.\d+)?|true|false)/g;
+		/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\[(=*)\[[\s\S]*?\]\3\]|-?\d+(?:\.\d+)?|true|false)/g;
 
 	for (const match of source.matchAll(pattern)) {
 		const key = match[1] as keyof TreeDef;
@@ -89,8 +89,11 @@ export function parseLuaTreedef(source: string): {
 			continue;
 		}
 		let value: string | number | boolean;
-		if (raw.startsWith('[[')) value = raw.slice(2, -2);
-		else if (raw.startsWith('"') || raw.startsWith("'"))
+		if (raw.startsWith('[')) {
+			// Long string: [[...]] or [==[...]==], where the first newline is skipped
+			const level = match[3].length + 2;
+			value = raw.slice(level, -level).replace(/^\r?\n/, '');
+		} else if (raw.startsWith('"') || raw.startsWith("'"))
 			value = raw
 				.slice(1, -1)
 				.replace(/\\(.)/g, (_, c: string) => (c === 'n' ? '\n' : c));
