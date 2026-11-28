@@ -1,0 +1,24 @@
+{
+	"name": "@workbench/l-system",
+	"private": true,
+	"type": "module",
+	"description": "L-system tree editor: Astro components for the pages, and framework-free logic in lib/",
+	"exports": {
+		"./Editor.astro": "./src/Editor.astro",
+		"./Docs.astro": "./src/Docs.astro",
+		"./lib/*": "./src/lib/*.ts"
+	},
+	"scripts": {
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"three": "^0.187.0"
+	},
+	"peerDependencies": {
+		"@lucide/astro": "^1.77.0",
+		"astro": "^7.4.13"
+	},
+	"devDependencies": {
+		"@types/three": "^0.187.0"
+	}
+}

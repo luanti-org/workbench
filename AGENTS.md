@@ -1,3 +1,18 @@
+## Repository layout
+
+npm workspaces: the Astro site is at the root, and each tool is a package in `packages/<tool>/`.
+
+- `packages/<tool>/` owns the whole tool: its Astro components (markup, styles and page script)
+  and its logic in `src/lib/`, with tests next to the code. Code in `lib/` stays free of Astro and
+  the DOM, so it can be tested and reused on its own.
+- `src/pages/<tool>/` holds thin entry points only: wrap the tool's component in the site
+  `Layout` and nothing else.
+- `src/layouts/` and `src/components/` hold shared site chrome.
+
+Each package declares its own dependencies. Add one with `npm install <dep> -w @workbench/<tool>`,
+then check that it landed in that package's `package.json`. `npm test` runs every package's tests,
+and `npm test -w @workbench/<tool>` runs one tool's.
+
 ## Development
 
 When starting the dev server, use background mode:
